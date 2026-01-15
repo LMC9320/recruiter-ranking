@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
+import type { Profile, Company, Review } from "@/types/database";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -22,7 +23,7 @@ export default async function AccountPage() {
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .single() as { data: Profile | null };
 
   // Get user's reviews
   const { data: reviews } = await supabase
@@ -30,20 +31,20 @@ export default async function AccountPage() {
     .select("*, companies (name, slug)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-    .limit(5);
+    .limit(5) as { data: (Review & { companies: { name: string; slug: string } })[] | null };
 
   // Get user's claimed companies
   const { data: claimedCompanies } = await supabase
     .from("companies")
     .select("*")
-    .eq("owner_id", user.id);
+    .eq("owner_id", user.id) as { data: Company[] | null };
 
   // Get pending claims
   const { data: pendingClaims } = await supabase
     .from("claim_requests")
     .select("*, companies (name, slug)")
     .eq("user_id", user.id)
-    .eq("status", "pending");
+    .eq("status", "pending") as { data: { id: string; created_at: string; companies: { name: string; slug: string } }[] | null };
 
   return (
     <div className="container py-8 max-w-4xl">

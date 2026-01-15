@@ -1,9 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { extractDomain } from "@/lib/utils";
 import type { ProofType } from "@/types/database";
 
 function generateToken(): string {
