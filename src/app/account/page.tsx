@@ -1,0 +1,234 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { User, Star, Building2, FileCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/server";
+import { formatDate } from "@/lib/utils";
+
+export default async function AccountPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  // Get user's reviews
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select("*, companies (name, slug)")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  // Get user's claimed companies
+  const { data: claimedCompanies } = await supabase
+    .from("companies")
+    .select("*")
+    .eq("owner_id", user.id);
+
+  // Get pending claims
+  const { data: pendingClaims } = await supabase
+    .from("claim_requests")
+    .select("*, companies (name, slug)")
+    .eq("user_id", user.id)
+    .eq("status", "pending");
+
+  return (
+    <div className="container py-8 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-8">My Account</h1>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Profile Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Profile
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm text-muted-foreground">
+                Display Name
+              </label>
+              <p className="font-medium">
+                {profile?.display_name || "Not set"}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">Email</label>
+              <p className="font-medium">{user.email}</p>
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">
+                Member Since
+              </label>
+              <p className="font-medium">
+                {formatDate(user.created_at)}
+              </p>
+            </div>
+            {profile?.is_admin && (
+              <Badge variant="secondary">Admin</Badge>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Stats Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5" />
+              Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <div className="text-2xl font-bold">
+                  {reviews?.length || 0}
+                </div>
+                <p className="text-sm text-muted-foreground">Reviews Written</p>
+              </div>
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <div className="text-2xl font-bold">
+                  {claimedCompanies?.length || 0}
+                </div>
+                <p className="text-sm text-muted-foreground">Companies Owned</p>
+              </div>
+            </div>
+            <Link href="/account/reviews">
+              <Button variant="outline" className="w-full">
+                View All My Reviews
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Claimed Companies */}
+        {claimedCompanies && claimedCompanies.length > 0 && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                My Companies
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {claimedCompanies.map((company) => (
+                  <div
+                    key={company.id}
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">{company.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {company.review_count} reviews -{" "}
+                        {company.average_rating?.toFixed(1) || "No"} rating
+                      </p>
+                    </div>
+                    <Link href={`/companies/${company.slug}/manage`}>
+                      <Button size="sm" variant="outline">
+                        Manage
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pending Claims */}
+        {pendingClaims && pendingClaims.length > 0 && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileCheck className="h-5 w-5" />
+                Pending Verification Requests
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {pendingClaims.map((claim) => (
+                  <div
+                    key={claim.id}
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {(claim.companies as { name: string }).name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Submitted {formatDate(claim.created_at)}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">Pending Review</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recent Reviews */}
+        {reviews && reviews.length > 0 && (
+          <Card className="md:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Star className="h-5 w-5" />
+                Recent Reviews
+              </CardTitle>
+              <Link href="/account/reviews">
+                <Button variant="ghost" size="sm">
+                  View All
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {reviews.map((review) => (
+                  <div
+                    key={review.id}
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {(review.companies as { name: string }).name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {review.overall_rating.toFixed(1)} stars -{" "}
+                        {formatDate(review.created_at)}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/companies/${
+                        (review.companies as { slug: string }).slug
+                      }`}
+                    >
+                      <Button size="sm" variant="ghost">
+                        View
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
