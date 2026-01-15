@@ -17,7 +17,7 @@ interface ReviewCardProps {
   isOwner?: boolean;
 }
 
-export function ReviewCard({ review, currentUserId, isOwner }: ReviewCardProps) {
+export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const [helpfulCount, setHelpfulCount] = useState(review.helpful_count);
   const [hasVoted, setHasVoted] = useState(false);
 

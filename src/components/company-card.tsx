@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Users, ExternalLink, BadgeCheck } from "lucide-react";
+import { MapPin, Users, BadgeCheck } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StarRating } from "@/components/star-rating";

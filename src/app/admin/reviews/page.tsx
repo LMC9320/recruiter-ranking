@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Check, X, Flag, Eye } from "lucide-react";
+import { Loader2, Check, X, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StarRating } from "@/components/star-rating";
 import { createClient } from "@/lib/supabase/client";
 import { updateReviewStatus, deleteReviewAdmin } from "@/lib/actions/admin";
@@ -24,32 +24,31 @@ export default function AdminReviewsPage() {
   const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchReviews();
-  }, [filter]);
+    async function loadReviews() {
+      setLoading(true);
+      const supabase = createClient();
 
-  async function fetchReviews() {
-    setLoading(true);
-    const supabase = createClient();
-
-    let query = supabase
-      .from("reviews")
-      .select(
+      let query = supabase
+        .from("reviews")
+        .select(
+          `
+          *,
+          companies (name, slug),
+          profiles:user_id (display_name)
         `
-        *,
-        companies (name, slug),
-        profiles:user_id (display_name)
-      `
-      )
-      .order("created_at", { ascending: false });
+        )
+        .order("created_at", { ascending: false });
 
-    if (filter !== "all") {
-      query = query.eq("status", filter);
+      if (filter !== "all") {
+        query = query.eq("status", filter);
+      }
+
+      const { data } = await query.limit(50);
+      setReviews((data as ReviewWithCompany[]) || []);
+      setLoading(false);
     }
-
-    const { data } = await query.limit(50);
-    setReviews((data as ReviewWithCompany[]) || []);
-    setLoading(false);
-  }
+    loadReviews();
+  }, [filter]);
 
   async function handleStatusChange(reviewId: string, status: ReviewStatus) {
     setProcessing(reviewId);
