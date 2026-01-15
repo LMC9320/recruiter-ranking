@@ -5,14 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { CompanyCard } from "@/components/company-card";
 import { createClient } from "@/lib/supabase/server";
+import type { Company } from "@/types/database";
 
-async function getFeaturedCompanies() {
+async function getFeaturedCompanies(): Promise<Company[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("companies")
     .select("*")
     .order("average_rating", { ascending: false, nullsFirst: false })
-    .limit(6);
+    .limit(6) as { data: Company[] | null };
   return data || [];
 }
 

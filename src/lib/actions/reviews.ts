@@ -49,7 +49,8 @@ export async function submitReview(data: ReviewFormData) {
     speed: data.ratingSpeed,
   });
 
-  const { error } = await supabase.from("reviews").insert({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("reviews") as any).insert({
     company_id: data.companyId,
     user_id: user.id,
     rating_communication: data.ratingCommunication,
@@ -92,7 +93,7 @@ export async function updateReview(
     .from("reviews")
     .select("user_id")
     .eq("id", reviewId)
-    .single();
+    .single() as { data: { user_id: string } | null };
 
   if (!review || review.user_id !== user.id) {
     return { error: "You can only edit your own reviews" };
@@ -130,7 +131,7 @@ export async function updateReview(
       .from("reviews")
       .select("*")
       .eq("id", reviewId)
-      .single();
+      .single() as { data: { rating_communication: number; rating_candidate_care: number; rating_job_quality: number; rating_speed: number } | null };
 
     if (currentReview) {
       updateData.overall_rating = calculateOverallRating({
@@ -144,8 +145,8 @@ export async function updateReview(
     }
   }
 
-  const { error } = await supabase
-    .from("reviews")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("reviews") as any)
     .update(updateData)
     .eq("id", reviewId);
 
@@ -173,13 +174,14 @@ export async function deleteReview(reviewId: string, companySlug: string) {
     .from("reviews")
     .select("user_id")
     .eq("id", reviewId)
-    .single();
+    .single() as { data: { user_id: string } | null };
 
   if (!review || review.user_id !== user.id) {
     return { error: "You can only delete your own reviews" };
   }
 
-  const { error } = await supabase.from("reviews").delete().eq("id", reviewId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("reviews") as any).delete().eq("id", reviewId);
 
   if (error) {
     return { error: error.message };
@@ -209,13 +211,14 @@ export async function submitReviewResponse(
     .from("reviews")
     .select("company_id, companies!inner(owner_id)")
     .eq("id", reviewId)
-    .single();
+    .single() as { data: { company_id: string; companies: { owner_id: string } } | null };
 
-  if (!review || (review.companies as { owner_id: string }).owner_id !== user.id) {
+  if (!review || review.companies.owner_id !== user.id) {
     return { error: "Only the company owner can respond to reviews" };
   }
 
-  const { error } = await supabase.from("review_responses").insert({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("review_responses") as any).insert({
     review_id: reviewId,
     user_id: user.id,
     response_text: responseText,

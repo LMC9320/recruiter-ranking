@@ -25,7 +25,8 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
     if (!currentUserId || hasVoted) return;
 
     const supabase = createClient();
-    const { error } = await supabase.from("helpful_votes").insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from("helpful_votes") as any).insert({
       review_id: review.id,
       user_id: currentUserId,
     });

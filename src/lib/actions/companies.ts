@@ -34,14 +34,14 @@ export async function updateCompany(
     .from("companies")
     .select("owner_id")
     .eq("id", companyId)
-    .single();
+    .single() as { data: { owner_id: string | null } | null };
 
   if (!company || company.owner_id !== user.id) {
     return { error: "You don't have permission to edit this company" };
   }
 
-  const { error } = await supabase
-    .from("companies")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("companies") as any)
     .update(data)
     .eq("id", companyId);
 
@@ -73,7 +73,7 @@ export async function transferOwnership(
     .from("companies")
     .select("owner_id")
     .eq("id", companyId)
-    .single();
+    .single() as { data: { owner_id: string | null } | null };
 
   if (!company || company.owner_id !== user.id) {
     return { error: "You don't have permission to transfer ownership" };
@@ -84,14 +84,14 @@ export async function transferOwnership(
     .from("profiles")
     .select("id")
     .eq("email", newOwnerEmail)
-    .single();
+    .single() as { data: { id: string } | null };
 
   if (!newOwner) {
     return { error: "User not found with that email address" };
   }
 
-  const { error } = await supabase
-    .from("companies")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("companies") as any)
     .update({ owner_id: newOwner.id })
     .eq("id", companyId);
 
