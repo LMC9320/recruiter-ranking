@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -77,4 +78,76 @@ export async function getProfile() {
     .single();
 
   return profile;
+}
+
+export async function deleteAccount() {
+  const supabase = await createClient();
+
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  try {
+    // Use admin client to delete user data and auth record
+    const adminClient = createAdminClient();
+
+    // First, manually delete data that might not cascade properly
+    // Remove company ownership (set to null instead of deleting companies)
+    await adminClient
+      .from("companies")
+      .update({ owner_id: null })
+      .eq("owner_id", user.id);
+
+    // Delete review responses by this user
+    await adminClient
+      .from("review_responses")
+      .delete()
+      .eq("user_id", user.id);
+
+    // Delete helpful votes by this user
+    await adminClient
+      .from("helpful_votes")
+      .delete()
+      .eq("user_id", user.id);
+
+    // Delete claim requests by this user
+    await adminClient
+      .from("claim_requests")
+      .delete()
+      .eq("user_id", user.id);
+
+    // Delete reviews by this user
+    await adminClient
+      .from("reviews")
+      .delete()
+      .eq("user_id", user.id);
+
+    // Delete profile (should cascade from auth.users, but do it explicitly)
+    await adminClient
+      .from("profiles")
+      .delete()
+      .eq("id", user.id);
+
+    // Finally, delete the user from Supabase Auth
+    const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
+
+    if (deleteError) {
+      console.error("Error deleting user from auth:", deleteError);
+      return { error: "Failed to delete account. Please try again." };
+    }
+
+    // Sign out locally
+    await supabase.auth.signOut();
+
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting account:", error);
+    return { error: "An error occurred while deleting your account" };
+  }
 }
