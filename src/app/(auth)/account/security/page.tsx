@@ -102,8 +102,10 @@ export default function SecurityPage() {
     try {
       const { data } = await supabase.auth.mfa.listFactors();
 
-      for (const factor of data.totp) {
-        await supabase.auth.mfa.unenroll({ factorId: factor.id });
+      if (data?.totp) {
+        for (const factor of data.totp) {
+          await supabase.auth.mfa.unenroll({ factorId: factor.id });
+        }
       }
 
       setMfaEnabled(false);
