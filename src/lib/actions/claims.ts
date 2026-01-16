@@ -1,16 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import type { ProofType } from "@/types/database";
 
+// Generate cryptographically secure random token
 function generateToken(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let token = "";
-  for (let i = 0; i < 64; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
+  return randomBytes(32).toString("hex");
 }
 
 interface EmailClaimData {
@@ -101,9 +98,9 @@ export async function submitEmailClaim(data: EmailClaimData) {
     return { error: error.message };
   }
 
-  // In a real implementation, you would send an email here using Resend
-  // For MVP, we'll return the token (in production, remove this!)
-  console.log(`Verification link: /verify/${token}`);
+  // TODO: Send verification email using Resend
+  // For now, the token is stored in the database and user can verify via the link
+  // In production, integrate with email service to send: /verify/${token}
 
   return {
     success: true,
