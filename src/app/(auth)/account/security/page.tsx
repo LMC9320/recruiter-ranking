@@ -42,7 +42,7 @@ export default function SecurityPage() {
 
       if (data?.totp) {
         const verifiedFactors = data.totp.filter(f => f.status === 'verified');
-        const unverifiedFactors = data.totp.filter(f => f.status === 'unverified');
+        const unverifiedFactors = data.totp.filter(f => (f.status as string) === 'unverified');
 
         setMfaEnabled(verifiedFactors.length > 0);
         setPendingFactor(unverifiedFactors.length > 0 ? unverifiedFactors[0] : null);
@@ -79,7 +79,7 @@ export default function SecurityPage() {
       const { data: existingFactors } = await supabase.auth.mfa.listFactors();
       if (existingFactors?.totp) {
         for (const factor of existingFactors.totp) {
-          if (factor.status === 'unverified') {
+          if ((factor.status as string) === 'unverified') {
             await supabase.auth.mfa.unenroll({ factorId: factor.id });
           }
         }
