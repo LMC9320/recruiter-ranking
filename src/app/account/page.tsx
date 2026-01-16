@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { User, Star, Building2, FileCheck } from "lucide-react";
+import { User, Star, Building2, FileCheck, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +112,27 @@ export default async function AccountPage() {
             <Link href="/account/reviews">
               <Button variant="outline" className="w-full">
                 View All My Reviews
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Security Card */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Security
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Protect your account with two-factor authentication (2FA)
+            </p>
+            <Link href="/account/security">
+              <Button variant="outline">
+                <Shield className="h-4 w-4 mr-2" />
+                Manage 2FA Settings
               </Button>
             </Link>
           </CardContent>

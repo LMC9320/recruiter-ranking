@@ -2,30 +2,159 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Building2, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Building2, Loader2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { login } from "@/lib/actions/auth";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [verifyingMfa, setVerifyingMfa] = useState(false);
+
+  const router = useRouter();
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
+  const supabase = createClient();
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setLoading(true);
     setError(null);
-    const result = await login(formData);
-    if (result?.error) {
-      setError(result.error);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
       setLoading(false);
+      return;
+    }
+
+    // Check if MFA is required
+    const { data: factorsData } = await supabase.auth.mfa.listFactors();
+
+    if (factorsData && factorsData.totp.length > 0) {
+      const verifiedFactor = factorsData.totp.find(f => f.status === 'verified');
+      if (verifiedFactor) {
+        setMfaFactorId(verifiedFactor.id);
+        setMfaRequired(true);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // No MFA, redirect to home
+    router.push("/");
+    router.refresh();
+  }
+
+  async function handleMfaVerify(e: React.FormEvent) {
+    e.preventDefault();
+    if (!mfaFactorId || mfaCode.length !== 6) return;
+
+    setVerifyingMfa(true);
+    setError(null);
+
+    try {
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: mfaFactorId
+      });
+
+      if (challengeError) throw challengeError;
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: mfaFactorId,
+        challengeId: challengeData.id,
+        code: mfaCode
+      });
+
+      if (verifyError) throw verifyError;
+
+      router.push("/");
+      router.refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Invalid verification code");
+      setVerifyingMfa(false);
     }
   }
 
+  // MFA Verification Screen
+  if (mfaRequired) {
+    return (
+      <Card>
+        <CardHeader className="space-y-1 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="p-3 bg-purple-100 rounded-full">
+              <Shield className="h-8 w-8 text-purple-600" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl">Two-Factor Authentication</CardTitle>
+          <CardDescription>
+            Enter the 6-digit code from your authenticator app
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-md">
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleMfaVerify} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="mfaCode">Verification Code</Label>
+              <Input
+                id="mfaCode"
+                type="text"
+                placeholder="000000"
+                maxLength={6}
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                className="text-center text-2xl tracking-widest"
+                autoFocus
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={mfaCode.length !== 6 || verifyingMfa}
+            >
+              {verifyingMfa && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Verify
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter>
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => {
+              setMfaRequired(false);
+              setMfaCode("");
+              setMfaFactorId(null);
+              supabase.auth.signOut();
+            }}
+          >
+            Use a different account
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  // Regular Login Screen
   return (
     <Card>
       <CardHeader className="space-y-1 text-center">
@@ -51,7 +180,7 @@ export default function LoginPage() {
             {error}
           </div>
         )}
-        <form action={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
