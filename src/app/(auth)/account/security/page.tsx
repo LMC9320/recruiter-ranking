@@ -5,14 +5,21 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, ShieldCheck, ShieldOff, Loader2 } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, Loader2, RefreshCw } from "lucide-react";
 import Image from "next/image";
+
+type MfaFactor = {
+  id: string;
+  status: string;
+  friendly_name?: string;
+};
 
 export default function SecurityPage() {
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [pendingFactor, setPendingFactor] = useState<MfaFactor | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [factorId, setFactorId] = useState<string | null>(null);
@@ -33,10 +40,31 @@ export default function SecurityPage() {
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) throw error;
 
-      const verifiedFactors = data.totp.filter(f => f.status === 'verified');
-      setMfaEnabled(verifiedFactors.length > 0);
+      if (data?.totp) {
+        const verifiedFactors = data.totp.filter(f => f.status === 'verified');
+        const unverifiedFactors = data.totp.filter(f => f.status === 'unverified');
+
+        setMfaEnabled(verifiedFactors.length > 0);
+        setPendingFactor(unverifiedFactors.length > 0 ? unverifiedFactors[0] : null);
+      }
     } catch (err: unknown) {
       console.error("Error checking MFA status:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function removePendingFactor() {
+    if (!pendingFactor) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      await supabase.auth.mfa.unenroll({ factorId: pendingFactor.id });
+      setPendingFactor(null);
+      setSuccess("Pending 2FA setup removed. You can start fresh.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to remove pending factor");
     } finally {
       setLoading(false);
     }
@@ -45,7 +73,18 @@ export default function SecurityPage() {
   async function startEnrollment() {
     setEnrolling(true);
     setError(null);
+    setSuccess(null);
     try {
+      // First, remove any unverified factors
+      const { data: existingFactors } = await supabase.auth.mfa.listFactors();
+      if (existingFactors?.totp) {
+        for (const factor of existingFactors.totp) {
+          if (factor.status === 'unverified') {
+            await supabase.auth.mfa.unenroll({ factorId: factor.id });
+          }
+        }
+      }
+
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'Authenticator App'
@@ -56,6 +95,7 @@ export default function SecurityPage() {
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
       setFactorId(data.id);
+      setPendingFactor(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to start enrollment");
     } finally {
@@ -119,139 +159,183 @@ export default function SecurityPage() {
 
   if (loading) {
     return (
-      <div className="container max-w-2xl py-12">
-        <div className="flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      <div className="min-h-screen bg-gray-50">
+        <div className="container max-w-2xl py-12 px-4">
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container max-w-2xl py-12">
-      <h1 className="text-3xl font-bold mb-8">Security Settings</h1>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container max-w-2xl py-12 px-4">
+        <h1 className="text-3xl font-bold mb-8 text-center">Security Settings</h1>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Shield className="h-6 w-6 text-purple-600" />
-            <div>
-              <CardTitle>Two-Factor Authentication (2FA)</CardTitle>
-              <CardDescription>
-                Add an extra layer of security to your account
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm">
-              {success}
-            </div>
-          )}
-
-          {mfaEnabled ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-green-600">
-                <ShieldCheck className="h-5 w-5" />
-                <span className="font-medium">2FA is enabled</span>
+        <Card className="shadow-lg">
+          <CardHeader className="pb-4">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-purple-100 rounded-full">
+                <Shield className="h-6 w-6 text-purple-600" />
               </div>
-              <p className="text-sm text-muted-foreground">
-                Your account is protected with two-factor authentication.
-              </p>
-              <Button
-                variant="destructive"
-                onClick={disableMfa}
-                disabled={loading}
-              >
-                <ShieldOff className="h-4 w-4 mr-2" />
-                Disable 2FA
-              </Button>
+              <div>
+                <CardTitle className="text-xl">Two-Factor Authentication (2FA)</CardTitle>
+                <CardDescription className="mt-1">
+                  Add an extra layer of security to your account
+                </CardDescription>
+              </div>
             </div>
-          ) : qrCode ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
-              </p>
-
-              <div className="flex justify-center p-4 bg-white rounded-lg">
-                <Image
-                  src={qrCode}
-                  alt="QR Code for 2FA"
-                  width={200}
-                  height={200}
-                  unoptimized
-                />
+          </CardHeader>
+          <CardContent className="space-y-6 pt-2">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-sm">
+                {error}
               </div>
+            )}
 
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground mb-1">Or enter this code manually:</p>
-                <code className="text-sm bg-gray-100 px-2 py-1 rounded">{secret}</code>
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-600 p-4 rounded-lg text-sm">
+                {success}
               </div>
+            )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Enter the 6-digit code from your app
-                </label>
-                <Input
-                  type="text"
-                  placeholder="000000"
-                  maxLength={6}
-                  value={verifyCode}
-                  onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
-                  className="text-center text-2xl tracking-widest"
-                />
+            {/* Pending factor warning */}
+            {pendingFactor && !qrCode && (
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                <p className="text-amber-800 text-sm mb-3">
+                  You have an incomplete 2FA setup. Would you like to start fresh or continue?
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={startEnrollment}
+                    disabled={enrolling}
+                  >
+                    {enrolling ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Start Fresh
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={removePendingFactor}
+                  >
+                    Cancel Setup
+                  </Button>
+                </div>
               </div>
+            )}
 
-              <div className="flex gap-2">
+            {mfaEnabled ? (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <ShieldCheck className="h-6 w-6 text-green-600" />
+                  <div>
+                    <span className="font-medium text-green-800">2FA is enabled</span>
+                    <p className="text-sm text-green-700 mt-0.5">
+                      Your account is protected with two-factor authentication.
+                    </p>
+                  </div>
+                </div>
                 <Button
-                  onClick={verifyAndEnable}
-                  disabled={verifyCode.length !== 6 || verifying}
-                  className="flex-1"
+                  variant="destructive"
+                  onClick={disableMfa}
+                  disabled={loading}
+                  className="w-full sm:w-auto"
                 >
-                  {verifying ? (
+                  <ShieldOff className="h-4 w-4 mr-2" />
+                  Disable 2FA
+                </Button>
+              </div>
+            ) : qrCode ? (
+              <div className="space-y-6">
+                <p className="text-muted-foreground">
+                  Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                </p>
+
+                <div className="flex justify-center p-6 bg-white border rounded-lg">
+                  <Image
+                    src={qrCode}
+                    alt="QR Code for 2FA"
+                    width={200}
+                    height={200}
+                    unoptimized
+                  />
+                </div>
+
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-2">Or enter this code manually:</p>
+                  <code className="text-sm bg-white px-3 py-2 rounded border font-mono break-all">
+                    {secret}
+                  </code>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-medium block">
+                    Enter the 6-digit code from your app
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="000000"
+                    maxLength={6}
+                    value={verifyCode}
+                    onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
+                    className="text-center text-2xl tracking-[0.5em] font-mono h-14"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={verifyAndEnable}
+                    disabled={verifyCode.length !== 6 || verifying}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    {verifying ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                    )}
+                    Verify & Enable
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => {
+                      setQrCode(null);
+                      setSecret(null);
+                      setFactorId(null);
+                      setVerifyCode("");
+                      checkMfaStatus();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : !pendingFactor ? (
+              <div className="space-y-6">
+                <p className="text-muted-foreground">
+                  Two-factor authentication adds an extra layer of security by requiring a code from your phone in addition to your password.
+                </p>
+                <Button onClick={startEnrollment} disabled={enrolling} size="lg">
+                  {enrolling ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    <Shield className="h-4 w-4 mr-2" />
                   )}
-                  Verify & Enable
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setQrCode(null);
-                    setSecret(null);
-                    setFactorId(null);
-                    setVerifyCode("");
-                  }}
-                >
-                  Cancel
+                  Enable 2FA
                 </Button>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Two-factor authentication adds an extra layer of security by requiring a code from your phone in addition to your password.
-              </p>
-              <Button onClick={startEnrollment} disabled={enrolling}>
-                {enrolling ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Shield className="h-4 w-4 mr-2" />
-                )}
-                Enable 2FA
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
