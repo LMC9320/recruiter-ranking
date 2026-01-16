@@ -44,7 +44,7 @@ export async function signup(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  redirect("/login?message=Check your email to confirm your account");
+  redirect("/login?message=Check your email to confirm your account. You'll need to set up 2FA after signing in.");
 }
 
 export async function logout() {

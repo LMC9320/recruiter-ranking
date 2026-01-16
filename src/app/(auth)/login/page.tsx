@@ -43,12 +43,13 @@ export default function LoginPage() {
       return;
     }
 
-    // Check if MFA is required
+    // Check if MFA is set up
     const { data: factorsData } = await supabase.auth.mfa.listFactors();
 
     if (factorsData && factorsData.totp.length > 0) {
       const verifiedFactor = factorsData.totp.find(f => f.status === 'verified');
       if (verifiedFactor) {
+        // MFA is enabled, need to verify
         setMfaFactorId(verifiedFactor.id);
         setMfaRequired(true);
         setLoading(false);
@@ -56,8 +57,8 @@ export default function LoginPage() {
       }
     }
 
-    // No MFA, redirect to home
-    router.push("/");
+    // No MFA set up - redirect to mandatory setup page
+    router.push("/setup-2fa");
     router.refresh();
   }
 
