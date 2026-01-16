@@ -42,7 +42,7 @@ export default function SecurityPage() {
 
       if (data?.totp) {
         const verifiedFactors = data.totp.filter(f => f.status === 'verified');
-        const unverifiedFactors = data.totp.filter(f => f.status === 'unverified');
+        const unverifiedFactors = data.totp.filter(f => (f.status as string) === 'unverified');
 
         setMfaEnabled(verifiedFactors.length > 0);
         setPendingFactor(unverifiedFactors.length > 0 ? unverifiedFactors[0] : null);
@@ -75,11 +75,12 @@ export default function SecurityPage() {
     setError(null);
     setSuccess(null);
     try {
-      // First, remove any unverified factors
+      // First, remove any non-verified factors (unverified status)
       const { data: existingFactors } = await supabase.auth.mfa.listFactors();
       if (existingFactors?.totp) {
         for (const factor of existingFactors.totp) {
-          if (factor.status === 'unverified') {
+          // Remove any factor that is NOT verified
+          if (factor.status !== 'verified') {
             await supabase.auth.mfa.unenroll({ factorId: factor.id });
           }
         }
@@ -89,6 +90,34 @@ export default function SecurityPage() {
         factorType: 'totp',
         friendlyName: 'Authenticator App'
       });
+
+      // If still getting "already exists" error, try to remove by friendly name
+      if (error?.message?.includes('already exists')) {
+        // Force remove all TOTP factors and retry
+        const { data: allFactors } = await supabase.auth.mfa.listFactors();
+        if (allFactors?.totp) {
+          for (const factor of allFactors.totp) {
+            if (factor.status !== 'verified') {
+              try {
+                await supabase.auth.mfa.unenroll({ factorId: factor.id });
+              } catch {
+                // Ignore unenroll errors
+              }
+            }
+          }
+        }
+        // Retry enrollment with different name
+        const { data: retryData, error: retryError } = await supabase.auth.mfa.enroll({
+          factorType: 'totp',
+          friendlyName: `Authenticator-${Date.now()}`
+        });
+        if (retryError) throw retryError;
+        setQrCode(retryData.totp.qr_code);
+        setSecret(retryData.totp.secret);
+        setFactorId(retryData.id);
+        setPendingFactor(null);
+        return;
+      }
 
       if (error) throw error;
 
