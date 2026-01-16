@@ -72,7 +72,7 @@ export default function ClaimCompanyPage({
         .from("companies")
         .select("*")
         .eq("slug", paramSlug)
-        .single();
+        .single() as { data: Company | null };
 
       if (!data) {
         router.push("/companies");

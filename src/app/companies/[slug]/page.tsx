@@ -23,19 +23,19 @@ import { ReviewCard } from "@/components/review-card";
 import { ReviewsSchema } from "@/components/structured-data";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/actions/auth";
-import type { ReviewWithProfile } from "@/types/database";
+import type { Company, ReviewWithProfile } from "@/types/database";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-async function getCompany(slug: string) {
+async function getCompany(slug: string): Promise<Company | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("companies")
     .select("*")
     .eq("slug", slug)
-    .single();
+    .single() as { data: Company | null };
   return data;
 }
 
@@ -100,7 +100,7 @@ export default async function CompanyPage({ params }: PageProps) {
       }
     : null;
 
-  const isOwner = user && company.owner_id === user.id;
+  const isOwner = !!(user && company.owner_id === user.id);
 
   return (
     <>

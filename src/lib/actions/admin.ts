@@ -20,7 +20,7 @@ async function verifyAdmin() {
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
-    .single();
+    .single() as { data: { is_admin: boolean } | null };
 
   if (!profile?.is_admin) {
     return { error: "Unauthorized", supabase: null, user: null };
@@ -38,8 +38,8 @@ export async function updateReviewStatus(
     return { error: authError || "Failed to initialize" };
   }
 
-  const { error } = await supabase
-    .from("reviews")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("reviews") as any)
     .update({ status })
     .eq("id", reviewId);
 
@@ -103,7 +103,8 @@ export async function createCompanyAdmin(data: {
     size: data.size as CompanyInsert["size"],
   };
 
-  const { error } = await supabase.from("companies").insert(companyData);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("companies") as any).insert(companyData);
 
   if (error) {
     return { error: error.message };

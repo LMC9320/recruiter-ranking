@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CompanyCard } from "@/components/company-card";
 import { CompanyFilters } from "@/components/company-filters";
 import { createClient } from "@/lib/supabase/server";
+import type { Company } from "@/types/database";
 
 export const metadata: Metadata = {
   title: "Browse Recruitment Companies",
@@ -20,7 +21,7 @@ interface SearchParams {
   sort?: string;
 }
 
-async function getCompanies(searchParams: SearchParams) {
+async function getCompanies(searchParams: SearchParams): Promise<Company[]> {
   const supabase = await createClient();
 
   let query = supabase.from("companies").select("*");
@@ -65,7 +66,7 @@ async function getCompanies(searchParams: SearchParams) {
       break;
   }
 
-  const { data } = await query;
+  const { data } = await query as { data: Company[] | null };
   return data || [];
 }
 

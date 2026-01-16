@@ -45,7 +45,7 @@ export async function submitEmailClaim(data: EmailClaimData) {
     .from("companies")
     .select("website_domain, is_verified")
     .eq("id", data.companyId)
-    .single();
+    .single() as { data: { website_domain: string | null; is_verified: boolean } | null };
 
   if (!company) {
     return { error: "Company not found" };
@@ -86,7 +86,8 @@ export async function submitEmailClaim(data: EmailClaimData) {
   expiresAt.setHours(expiresAt.getHours() + 24);
 
   // Create claim request
-  const { error } = await supabase.from("claim_requests").insert({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("claim_requests") as any).insert({
     company_id: data.companyId,
     user_id: user.id,
     verification_type: "email",
@@ -127,7 +128,7 @@ export async function submitManualClaim(data: ManualClaimData) {
     .from("companies")
     .select("is_verified")
     .eq("id", data.companyId)
-    .single();
+    .single() as { data: { is_verified: boolean } | null };
 
   if (!company) {
     return { error: "Company not found" };
@@ -151,7 +152,8 @@ export async function submitManualClaim(data: ManualClaimData) {
   }
 
   // Create manual claim request
-  const { error } = await supabase.from("claim_requests").insert({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("claim_requests") as any).insert({
     company_id: data.companyId,
     user_id: user.id,
     verification_type: "manual",
@@ -184,7 +186,7 @@ export async function verifyToken(token: string) {
     .select("*, companies(slug)")
     .eq("token", token)
     .eq("status", "pending")
-    .single();
+    .single() as { data: { id: string; token_expires_at: string | null; user_id: string; company_id: string; companies: { slug: string } } | null };
 
   if (!claim) {
     return { error: "Invalid or expired verification link" };
@@ -192,16 +194,16 @@ export async function verifyToken(token: string) {
 
   // Check if token expired
   if (new Date(claim.token_expires_at!) < new Date()) {
-    await supabase
-      .from("claim_requests")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from("claim_requests") as any)
       .update({ status: "expired" })
       .eq("id", claim.id);
     return { error: "This verification link has expired" };
   }
 
   // Update claim status and company ownership
-  const { error: claimError } = await supabase
-    .from("claim_requests")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: claimError } = await (supabase.from("claim_requests") as any)
     .update({ status: "approved" })
     .eq("id", claim.id);
 
@@ -209,8 +211,8 @@ export async function verifyToken(token: string) {
     return { error: claimError.message };
   }
 
-  const { error: companyError } = await supabase
-    .from("companies")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: companyError } = await (supabase.from("companies") as any)
     .update({
       is_verified: true,
       owner_id: claim.user_id,
@@ -222,7 +224,7 @@ export async function verifyToken(token: string) {
     return { error: companyError.message };
   }
 
-  const companySlug = (claim.companies as { slug: string }).slug;
+  const companySlug = claim.companies.slug;
   revalidatePath(`/companies/${companySlug}`);
 
   return {
@@ -247,7 +249,7 @@ export async function approveClaim(claimId: string, adminNotes?: string) {
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
-    .single();
+    .single() as { data: { is_admin: boolean } | null };
 
   if (!profile?.is_admin) {
     return { error: "Unauthorized" };
@@ -258,15 +260,15 @@ export async function approveClaim(claimId: string, adminNotes?: string) {
     .from("claim_requests")
     .select("*, companies(slug)")
     .eq("id", claimId)
-    .single();
+    .single() as { data: { user_id: string; company_id: string } | null };
 
   if (!claim) {
     return { error: "Claim not found" };
   }
 
   // Update claim
-  const { error: claimError } = await supabase
-    .from("claim_requests")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: claimError } = await (supabase.from("claim_requests") as any)
     .update({
       status: "approved",
       admin_notes: adminNotes,
@@ -280,8 +282,8 @@ export async function approveClaim(claimId: string, adminNotes?: string) {
   }
 
   // Update company
-  const { error: companyError } = await supabase
-    .from("companies")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: companyError } = await (supabase.from("companies") as any)
     .update({
       is_verified: true,
       owner_id: claim.user_id,
@@ -313,14 +315,14 @@ export async function rejectClaim(claimId: string, adminNotes: string) {
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
-    .single();
+    .single() as { data: { is_admin: boolean } | null };
 
   if (!profile?.is_admin) {
     return { error: "Unauthorized" };
   }
 
-  const { error } = await supabase
-    .from("claim_requests")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("claim_requests") as any)
     .update({
       status: "rejected",
       admin_notes: adminNotes,

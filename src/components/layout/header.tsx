@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, LogOut, Menu, User, Settings, Shield } from "lucide-react";
+import { Sparkles, LogOut, Menu, User, Settings, Shield, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,24 +27,26 @@ export function Header({ profile }: HeaderProps) {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-white/80 dark:bg-gray-950/80 backdrop-blur-md">
       <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg hidden sm:inline-block">
+        <div className="flex items-center gap-8">
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <span className="font-bold text-xl hidden sm:inline-block bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">
               RecruiterRank
             </span>
           </Link>
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
                   pathname === link.href
-                    ? "text-foreground"
-                    : "text-muted-foreground"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 {link.label}
@@ -53,62 +55,76 @@ export function Header({ profile }: HeaderProps) {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {profile ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="relative h-8 w-8 rounded-full"
+                  className="relative h-10 w-10 rounded-full ring-2 ring-gray-100 dark:ring-gray-800 hover:ring-primary/50 transition-all"
                 >
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-white font-semibold">
                       {profile.display_name?.charAt(0).toUpperCase() ||
                         profile.email.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <div className="flex items-center justify-start gap-2 p-2">
-                  <div className="flex flex-col space-y-1 leading-none">
+              <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg mb-2">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-white font-semibold">
+                      {profile.display_name?.charAt(0).toUpperCase() ||
+                        profile.email.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col space-y-0.5 leading-none flex-1 min-w-0">
                     {profile.display_name && (
-                      <p className="font-medium">{profile.display_name}</p>
+                      <p className="font-semibold truncate">{profile.display_name}</p>
                     )}
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground truncate">
                       {profile.email}
                     </p>
                   </div>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/account">
-                    <User className="mr-2 h-4 w-4" />
-                    My Account
+                <DropdownMenuItem asChild className="rounded-lg cursor-pointer">
+                  <Link href="/account" className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <User className="mr-3 h-4 w-4 text-muted-foreground" />
+                      My Account
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/account/reviews">
-                    <Settings className="mr-2 h-4 w-4" />
-                    My Reviews
+                <DropdownMenuItem asChild className="rounded-lg cursor-pointer">
+                  <Link href="/account/reviews" className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Settings className="mr-3 h-4 w-4 text-muted-foreground" />
+                      My Reviews
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </Link>
                 </DropdownMenuItem>
                 {profile.is_admin && (
                   <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin">
-                        <Shield className="mr-2 h-4 w-4" />
-                        Admin Panel
+                    <DropdownMenuSeparator className="my-2" />
+                    <DropdownMenuItem asChild className="rounded-lg cursor-pointer">
+                      <Link href="/admin" className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Shield className="mr-3 h-4 w-4 text-muted-foreground" />
+                          Admin Panel
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </Link>
                     </DropdownMenuItem>
                   </>
                 )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
+                <DropdownMenuSeparator className="my-2" />
+                <DropdownMenuItem asChild className="rounded-lg cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950">
                   <form action={logout}>
                     <button className="flex w-full items-center">
-                      <LogOut className="mr-2 h-4 w-4" />
+                      <LogOut className="mr-3 h-4 w-4" />
                       Sign Out
                     </button>
                   </form>
@@ -117,10 +133,10 @@ export function Header({ profile }: HeaderProps) {
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
-              <Button variant="ghost" asChild>
+              <Button variant="ghost" asChild className="rounded-full">
                 <Link href="/login">Sign In</Link>
               </Button>
-              <Button asChild>
+              <Button asChild className="rounded-full shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow">
                 <Link href="/signup">Sign Up</Link>
               </Button>
             </div>
@@ -129,14 +145,14 @@ export function Header({ profile }: HeaderProps) {
           {/* Mobile menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="rounded-full">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-48 p-2">
               {navLinks.map((link) => (
-                <DropdownMenuItem key={link.href} asChild>
+                <DropdownMenuItem key={link.href} asChild className="rounded-lg">
                   <Link href={link.href}>{link.label}</Link>
                 </DropdownMenuItem>
               ))}

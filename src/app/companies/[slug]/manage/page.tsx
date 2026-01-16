@@ -71,7 +71,7 @@ export default function ManageCompanyPage({
         .from("companies")
         .select("*")
         .eq("slug", paramSlug)
-        .single();
+        .single() as { data: Company | null };
 
       if (!data || data.owner_id !== user.id) {
         router.push(`/companies/${paramSlug}`);
