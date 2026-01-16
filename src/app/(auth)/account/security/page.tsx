@@ -24,6 +24,7 @@ export default function SecurityPage() {
 
   useEffect(() => {
     checkMfaStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function checkMfaStatus() {
